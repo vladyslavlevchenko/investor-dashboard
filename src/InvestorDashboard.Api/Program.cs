@@ -31,7 +31,7 @@ builder.Services.AddSwaggerGen(options =>
 });
 
 // Configure CORS for Angular development
-var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() 
+var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>()
     ?? new[] { "http://localhost:4200" };
 
 builder.Services.AddCors(options =>

@@ -1,4 +1,4 @@
-﻿namespace InvestorDashboard.Infrastructure;
+namespace InvestorDashboard.Infrastructure;
 
 public class Class1
 {
