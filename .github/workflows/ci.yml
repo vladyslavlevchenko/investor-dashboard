@@ -1,0 +1,269 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+env:
+  DOTNET_VERSION: '8.0.x'
+  NODE_VERSION: '20.x'
+
+jobs:
+  # Backend Build and Test
+  backend:
+    name: Backend (.NET)
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: ${{ env.DOTNET_VERSION }}
+    
+    - name: Restore dependencies
+      run: dotnet restore
+    
+    - name: Build
+      run: dotnet build --no-restore --configuration Release
+    
+    - name: Run tests
+      run: |
+        dotnet test --no-build --configuration Release \
+          --verbosity normal \
+          /p:CollectCoverage=true \
+          /p:CoverletOutputFormat=opencover \
+          /p:CoverageDirectory=./coverage \
+          /p:Exclude="[*.Tests*]*"
+    
+    - name: Check code coverage
+      run: |
+        dotnet tool install -g dotnet-reportgenerator-globaltool
+        reportgenerator \
+          -reports:tests/**/coverage/coverage.opencover.xml \
+          -targetdir:coverage/report \
+          -reporttypes:"Html;TextSummary"
+        
+        # Display summary
+        cat coverage/report/Summary.txt
+        
+        # Extract line coverage percentage and check threshold
+        COVERAGE=$(grep -oP 'Line coverage: \K[0-9.]+' coverage/report/Summary.txt || echo "0")
+        echo "Coverage: $COVERAGE%"
+        
+        # Fail if coverage < 85%
+        if (( $(echo "$COVERAGE < 85.0" | bc -l) )); then
+          echo "❌ Coverage $COVERAGE% is below 85% threshold"
+          exit 1
+        fi
+        echo "✅ Coverage $COVERAGE% meets 85% threshold"
+    
+    - name: Upload coverage reports
+      uses: actions/upload-artifact@v4
+      with:
+        name: coverage-report
+        path: coverage/report
+    
+    - name: Check StyleCop warnings
+      run: |
+        dotnet build --no-restore --configuration Release /warnaserror
+    
+    - name: Check formatting
+      run: dotnet format --verify-no-changes --no-restore
+
+  # Frontend Build and Test
+  frontend:
+    name: Frontend (Angular)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./src/investor-dashboard-ui
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        cache: 'npm'
+        cache-dependency-path: src/investor-dashboard-ui/package-lock.json
+    
+    - name: Install dependencies
+      run: npm ci
+    
+    - name: Lint
+      run: npm run lint --if-present
+    
+    - name: Build
+      run: npm run build -- --configuration production
+    
+    - name: Test
+      run: npm test -- --watch=false --browsers=ChromeHeadless --code-coverage
+    
+    - name: Upload build artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: angular-build
+        path: src/investor-dashboard-ui/dist
+
+  # Documentation Check
+  docs:
+    name: Documentation
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 2
+    
+    - name: Check documentation updates
+      run: |
+        # Get changed files in this PR/commit
+        CHANGED_FILES=$(git diff --name-only HEAD~1 HEAD)
+        
+        # Check if any source files changed
+        if echo "$CHANGED_FILES" | grep -qE '^src/.*\.(cs|ts)$'; then
+          echo "Source files changed, checking documentation..."
+          
+          # Check if CHANGELOG.md was updated
+          if ! echo "$CHANGED_FILES" | grep -q "docs/CHANGELOG.md"; then
+            echo "⚠️ Warning: Source files changed but CHANGELOG.md not updated"
+          fi
+          
+          # Check if API files changed
+          if echo "$CHANGED_FILES" | grep -q "Controllers"; then
+            if ! echo "$CHANGED_FILES" | grep -q "docs/API.md"; then
+              echo "⚠️ Warning: Controllers changed but API.md not updated"
+            fi
+          fi
+        fi
+        
+        echo "✅ Documentation check complete"
+
+  # OpenAPI Spec Generation
+  openapi:
+    name: OpenAPI Spec
+    runs-on: ubuntu-latest
+    needs: backend
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: ${{ env.DOTNET_VERSION }}
+    
+    - name: Install Swashbuckle CLI
+      run: dotnet tool install -g Swashbuckle.AspNetCore.Cli
+    
+    - name: Generate OpenAPI spec
+      run: |
+        cd src/InvestorDashboard.Api
+        dotnet build
+        swagger tofile --output ../../docs/openapi.json bin/Debug/net8.0/InvestorDashboard.Api.dll v1
+    
+    - name: Validate OpenAPI spec
+      run: |
+        # Install spectral for OpenAPI validation
+        npm install -g @stoplight/spectral-cli
+        
+        # Validate (warnings only, don't fail build)
+        spectral lint docs/openapi.json --ruleset spectral:oas || true
+    
+    - name: Upload OpenAPI spec
+      uses: actions/upload-artifact@v4
+      with:
+        name: openapi-spec
+        path: docs/openapi.json
+
+  # Security Scan
+  security:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Run secret scan
+      run: |
+        # Check for common secret patterns
+        if grep -r -E '(password|secret|api_key|apikey|token|bearer)\s*[:=]\s*["\047][^"\047]{8,}["\047]' \
+          --include="*.cs" \
+          --include="*.json" \
+          --include="*.ts" \
+          --exclude-dir=node_modules \
+          --exclude-dir=bin \
+          --exclude-dir=obj \
+          .; then
+          echo "❌ Potential secrets found in code!"
+          exit 1
+        fi
+        echo "✅ No secrets detected"
+    
+    - name: Check for hardcoded URLs
+      run: |
+        # Warn about hardcoded localhost URLs (should use configuration)
+        if grep -r "https://localhost:" --include="*.cs" --include="*.ts" src/; then
+          echo "⚠️ Warning: Hardcoded localhost URLs found"
+        fi
+
+  # Integration Tests
+  integration:
+    name: Integration Tests
+    runs-on: ubuntu-latest
+    needs: backend
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: ${{ env.DOTNET_VERSION }}
+    
+    - name: Run integration tests
+      run: |
+        dotnet test tests/InvestorDashboard.Tests.Integration \
+          --configuration Release \
+          --logger "trx;LogFileName=integration-tests.trx"
+    
+    - name: Upload test results
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: integration-test-results
+        path: tests/**/TestResults/*.trx
+
+  # Build Summary
+  summary:
+    name: Build Summary
+    runs-on: ubuntu-latest
+    needs: [backend, frontend, docs, openapi, security, integration]
+    if: always()
+    
+    steps:
+    - name: Check build status
+      run: |
+        echo "## Build Summary" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "- Backend: ${{ needs.backend.result }}" >> $GITHUB_STEP_SUMMARY
+        echo "- Frontend: ${{ needs.frontend.result }}" >> $GITHUB_STEP_SUMMARY
+        echo "- Documentation: ${{ needs.docs.result }}" >> $GITHUB_STEP_SUMMARY
+        echo "- OpenAPI: ${{ needs.openapi.result }}" >> $GITHUB_STEP_SUMMARY
+        echo "- Security: ${{ needs.security.result }}" >> $GITHUB_STEP_SUMMARY
+        echo "- Integration Tests: ${{ needs.integration.result }}" >> $GITHUB_STEP_SUMMARY
+        
+        if [[ "${{ needs.backend.result }}" != "success" ]] || \
+           [[ "${{ needs.frontend.result }}" != "success" ]]; then
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "❌ Build failed!" >> $GITHUB_STEP_SUMMARY
+          exit 1
+        fi
+        
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "✅ All checks passed!" >> $GITHUB_STEP_SUMMARY
