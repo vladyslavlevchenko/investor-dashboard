@@ -1,6 +1,19 @@
+using Microsoft.EntityFrameworkCore;
 using Microsoft.OpenApi.Models;
+using InvestorDashboard.Core.Interfaces;
+using InvestorDashboard.Infrastructure.Data;
+using InvestorDashboard.Infrastructure.Repositories;
+using InvestorDashboard.Infrastructure.Providers;
 
 var builder = WebApplication.CreateBuilder(args);
+
+// Add database context
+builder.Services.AddDbContext<AppDbContext>(options =>
+    options.UseSqlite(builder.Configuration.GetConnectionString("DefaultConnection")));
+
+// Register repositories and services
+builder.Services.AddScoped<IPortfolioRepository, PortfolioRepository>();
+builder.Services.AddScoped<IMarketDataProvider, MockMarketDataProvider>();
 
 // Add services to the container
 builder.Services.AddControllers();
