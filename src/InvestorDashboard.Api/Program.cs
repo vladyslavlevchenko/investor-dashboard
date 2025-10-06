@@ -1,9 +1,9 @@
-using Microsoft.EntityFrameworkCore;
-using Microsoft.OpenApi.Models;
 using InvestorDashboard.Core.Interfaces;
 using InvestorDashboard.Infrastructure.Data;
-using InvestorDashboard.Infrastructure.Repositories;
 using InvestorDashboard.Infrastructure.Providers;
+using InvestorDashboard.Infrastructure.Repositories;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.OpenApi.Models;
 
 var builder = WebApplication.CreateBuilder(args);
 

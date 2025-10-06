@@ -208,7 +208,7 @@ public class PortfolioRepository : IPortfolioRepository
             allocation.UpdatedAt = now;
         }
         _context.TargetAllocations.AddRange(allocations);
-        
+
         await _context.SaveChangesAsync(cancellationToken);
     }
 

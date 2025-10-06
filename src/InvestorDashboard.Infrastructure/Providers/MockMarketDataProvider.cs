@@ -1,7 +1,7 @@
-using InvestorDashboard.Core.Entities;
-using InvestorDashboard.Core.Interfaces;
 using System.Security.Cryptography;
 using System.Text;
+using InvestorDashboard.Core.Entities;
+using InvestorDashboard.Core.Interfaces;
 
 namespace InvestorDashboard.Infrastructure.Providers;
 
@@ -29,7 +29,7 @@ public class MockMarketDataProvider : IMarketDataProvider
         CancellationToken cancellationToken = default)
     {
         var priceBars = new List<PriceBar>();
-        
+
         for (var date = from.Date; date <= to.Date; date = date.AddDays(1))
         {
             // Skip weekends (Saturday = 6, Sunday = 0)
@@ -57,7 +57,7 @@ public class MockMarketDataProvider : IMarketDataProvider
         CancellationToken cancellationToken = default)
     {
         var prices = new Dictionary<string, decimal?>();
-        
+
         foreach (var ticker in tickers)
         {
             prices[ticker] = await GetCurrentPriceAsync(ticker, cancellationToken);
@@ -74,23 +74,23 @@ public class MockMarketDataProvider : IMarketDataProvider
     {
         // Get a deterministic offset based on ticker (0-1 range)
         var tickerOffset = GetTickerOffset(ticker);
-        
+
         // Calculate days since epoch (Jan 1, 2020)
         var epoch = new DateTime(2020, 1, 1);
         var daysSinceEpoch = (date - epoch).Days;
-        
+
         // Base price adjusted by ticker (ranges from 50 to 500)
         var adjustedBase = BasePrice * (0.5m + (tickerOffset * 4.5m));
-        
+
         // Apply linear growth
         var growthFactor = 1.0m + (DailyGrowthRate * daysSinceEpoch);
-        
+
         // Add deterministic "volatility" based on date hash
         var dateHash = GetDateHash(ticker, date);
         var volatilityFactor = 1.0m + (Volatility * (dateHash - 0.5m));
-        
+
         var price = adjustedBase * growthFactor * volatilityFactor;
-        
+
         // Round to 2 decimal places
         return Math.Round(price, 2);
     }
@@ -121,7 +121,7 @@ public class MockMarketDataProvider : IMarketDataProvider
     {
         var bytes = Encoding.UTF8.GetBytes(input);
         var hash = MD5.HashData(bytes);
-        
+
         // Take first 4 bytes and convert to uint
         return BitConverter.ToUInt32(hash, 0);
     }

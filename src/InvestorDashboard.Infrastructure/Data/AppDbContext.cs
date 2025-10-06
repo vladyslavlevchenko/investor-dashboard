@@ -40,10 +40,10 @@ public class AppDbContext : DbContext
             entity.HasKey(e => e.Id);
             entity.HasIndex(e => e.SecurityId);
             entity.HasIndex(e => e.PurchaseDate);
-            
+
             entity.Property(e => e.Quantity).HasPrecision(18, 4);
             entity.Property(e => e.CostBasis).HasPrecision(18, 4);
-            
+
             entity.HasOne(e => e.Security)
                   .WithMany(s => s.PositionLots)
                   .HasForeignKey(e => e.SecurityId)
@@ -56,11 +56,11 @@ public class AppDbContext : DbContext
             entity.HasKey(e => e.Id);
             entity.HasIndex(e => e.SecurityId);
             entity.HasIndex(e => e.Date);
-            
+
             entity.Property(e => e.Quantity).HasPrecision(18, 4);
             entity.Property(e => e.Price).HasPrecision(18, 4);
             entity.Property(e => e.Commission).HasPrecision(18, 4);
-            
+
             entity.HasOne(e => e.Security)
                   .WithMany(s => s.Transactions)
                   .HasForeignKey(e => e.SecurityId)
@@ -72,12 +72,12 @@ public class AppDbContext : DbContext
         {
             entity.HasKey(e => e.Id);
             entity.HasIndex(e => new { e.SecurityId, e.Date }).IsUnique();
-            
+
             entity.Property(e => e.Close).HasPrecision(18, 4);
             entity.Property(e => e.Open).HasPrecision(18, 4);
             entity.Property(e => e.High).HasPrecision(18, 4);
             entity.Property(e => e.Low).HasPrecision(18, 4);
-            
+
             entity.HasOne(e => e.Security)
                   .WithMany(s => s.PriceBars)
                   .HasForeignKey(e => e.SecurityId)
@@ -88,7 +88,7 @@ public class AppDbContext : DbContext
         modelBuilder.Entity<PortfolioSettings>(entity =>
         {
             entity.HasKey(e => e.Id);
-            
+
             entity.Property(e => e.RiskFreeRate).HasPrecision(10, 6);
             entity.Property(e => e.MinNotional).HasPrecision(18, 2);
             entity.Property(e => e.DriftBandPercent).HasPrecision(10, 6);
@@ -99,10 +99,10 @@ public class AppDbContext : DbContext
         {
             entity.HasKey(e => e.Id);
             entity.HasIndex(e => new { e.PortfolioSettingsId, e.Ticker }).IsUnique();
-            
+
             entity.Property(e => e.Ticker).HasMaxLength(10).IsRequired();
             entity.Property(e => e.TargetWeight).HasPrecision(10, 6);
-            
+
             entity.HasOne(e => e.PortfolioSettings)
                   .WithMany(ps => ps.TargetAllocations)
                   .HasForeignKey(e => e.PortfolioSettingsId)
@@ -114,7 +114,7 @@ public class AppDbContext : DbContext
         {
             entity.HasKey(e => e.Id);
             entity.HasIndex(e => new { e.Symbol, e.Date }).IsUnique();
-            
+
             entity.Property(e => e.Symbol).HasMaxLength(10).IsRequired();
             entity.Property(e => e.Close).HasPrecision(18, 4);
         });

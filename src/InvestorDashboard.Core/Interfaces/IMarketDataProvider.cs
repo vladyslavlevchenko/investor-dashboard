@@ -12,7 +12,7 @@ public interface IMarketDataProvider
     /// Get the current (latest) price for a ticker
     /// </summary>
     Task<decimal?> GetCurrentPriceAsync(string ticker, CancellationToken cancellationToken = default);
-    
+
     /// <summary>
     /// Get historical daily prices for a ticker within a date range
     /// </summary>
@@ -21,7 +21,7 @@ public interface IMarketDataProvider
         DateTime from,
         DateTime to,
         CancellationToken cancellationToken = default);
-    
+
     /// <summary>
     /// Get multiple tickers' prices in a single call (optional optimization)
     /// </summary>
