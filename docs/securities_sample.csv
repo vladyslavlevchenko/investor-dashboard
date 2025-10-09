@@ -1,0 +1,13 @@
+Ticker,Name,AssetClass
+AAPL,Apple Inc.,US Equity
+GOOGL,Alphabet Inc.,US Equity
+MSFT,Microsoft Corporation,US Equity
+AMZN,Amazon.com Inc.,US Equity
+TSLA,Tesla Inc.,US Equity
+META,Meta Platforms Inc.,US Equity
+NVDA,NVIDIA Corporation,US Equity
+SPY,SPDR S&P 500 ETF Trust,US ETF
+QQQ,Invesco QQQ Trust,US ETF
+AGG,iShares Core U.S. Aggregate Bond ETF,US Bond ETF
+VTI,Vanguard Total Stock Market ETF,US ETF
+BND,Vanguard Total Bond Market ETF,US Bond ETF

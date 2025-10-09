@@ -1,0 +1,126 @@
+<div class="csv-import">
+  <div class="import-header">
+    <h3>Bulk Import Securities</h3>
+    <button class="btn-link" (click)="downloadSample()">
+      📥 Download Sample CSV
+    </button>
+  </div>
+
+  @if (error()) {
+    <div class="alert alert-error">
+      <pre>{{ error() }}</pre>
+    </div>
+  }
+
+  @if (parsedSecurities().length === 0 && !importResults()) {
+    <div 
+      class="dropzone"
+      [class.dragging]="isDragging()"
+      (drop)="onDrop($event)"
+      (dragover)="onDragOver($event)"
+      (dragleave)="onDragLeave($event)"
+    >
+      <div class="dropzone-content">
+        <div class="icon">📁</div>
+        <p class="title">Drag & drop your CSV file here</p>
+        <p class="subtitle">or</p>
+        <label class="btn btn-secondary">
+          Browse Files
+          <input 
+            type="file" 
+            accept=".csv"
+            (change)="onFileSelected($event)"
+            hidden
+          />
+        </label>
+        <p class="format-info">Expected format: Ticker, Name, Asset Class</p>
+      </div>
+    </div>
+  }
+
+  @if (parsedSecurities().length > 0 && !importResults()) {
+    <div class="preview">
+      <div class="preview-header">
+        <h4>Preview ({{ parsedSecurities().length }} securities)</h4>
+        <button class="btn-link" (click)="reset()">Cancel</button>
+      </div>
+
+      <div class="preview-table">
+        <table>
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Ticker</th>
+              <th>Name</th>
+              <th>Asset Class</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (security of parsedSecurities(); track $index) {
+              <tr>
+                <td>{{ $index + 1 }}</td>
+                <td class="ticker">{{ security.ticker }}</td>
+                <td>{{ security.name }}</td>
+                <td>{{ security.assetClass }}</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+
+      <div class="preview-actions">
+        <button 
+          class="btn btn-primary"
+          (click)="importSecurities()"
+          [disabled]="isProcessing()"
+        >
+          {{ isProcessing() ? 'Importing...' : 'Import All Securities' }}
+        </button>
+      </div>
+    </div>
+  }
+
+  @if (importResults(); as results) {
+    <div class="results">
+      <div class="results-header">
+        <h4>Import Complete</h4>
+        <button class="btn-link" (click)="reset()">Import More</button>
+      </div>
+
+      <div class="results-summary">
+        @if (results.success.length > 0) {
+          <div class="success-box">
+            <div class="icon">✅</div>
+            <div class="text">
+              <strong>{{ results.success.length }} succeeded</strong>
+              <p>Securities imported successfully</p>
+            </div>
+          </div>
+        }
+
+        @if (results.failed.length > 0) {
+          <div class="error-box">
+            <div class="icon">❌</div>
+            <div class="text">
+              <strong>{{ results.failed.length }} failed</strong>
+              <p>Could not import these securities</p>
+            </div>
+          </div>
+        }
+      </div>
+
+      @if (results.failed.length > 0) {
+        <div class="failed-list">
+          <h5>Failed Imports:</h5>
+          <ul>
+            @for (item of results.failed; track item.ticker) {
+              <li>
+                <strong>{{ item.ticker }}</strong>: {{ item.error }}
+              </li>
+            }
+          </ul>
+        </div>
+      }
+    </div>
+  }
+</div>
